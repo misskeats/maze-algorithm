@@ -3,145 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DFS Stack Visualization</title>
+    <title>DFS Maze Solver Visualization</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
+            background-color: #f0f2f5;
             color: #333;
-            margin: 0;
-            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            padding: 20px;
+            margin: 0;
         }
 
-        h1 { margin-bottom: 5px; }
-        p.subtitle { margin-top: 0; color: #666; margin-bottom: 20px; }
+        h1 { margin-bottom: 5px; text-align: center; }
+        p.subtitle { color: #555; margin-top: 0; margin-bottom: 30px; }
 
-        .dashboard {
+        .main-container {
             display: flex;
-            gap: 40px;
+            flex-direction: column;
+            gap: 30px;
+            width: 100%;
+            max-width: 600px;
             background: white;
             padding: 30px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
         }
 
-        /* Grid / Maze Styles */
-        .maze-container {
+        /* Maze Grid */
+        .maze-section {
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        
+
         .grid {
             display: grid;
-            grid-template-columns: repeat(5, 60px);
-            gap: 4px;
-            background-color: #ddd;
+            /* 7 columns for our specific maze array */
+            grid-template-columns: repeat(7, 45px); 
+            gap: 2px;
+            background-color: #111; /* Dark wall color behind paths */
             padding: 4px;
-            border-radius: 8px;
+            border-radius: 6px;
         }
 
         .cell {
-            width: 60px;
-            height: 60px;
-            background-color: white;
+            width: 45px;
+            height: 45px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 11px;
             font-weight: bold;
-            color: #ccc;
+            color: #888;
+            transition: all 0.2s;
+        }
+
+        .path { background-color: #fdfdfd; }
+        .wall { background-color: #222; color: transparent; }
+        
+        .visited { 
+            background-color: #b3d4ff; 
+            color: #003366; 
+        }
+        
+        .current { 
+            background-color: #ffc107; 
+            color: #856404; 
+            transform: scale(1.1);
             border-radius: 4px;
-            transition: all 0.3s ease;
-        }
-
-        .cell.visited {
-            background-color: #cce5ff; /* Light blue for visited */
-            color: #004085;
-        }
-
-        .cell.current {
-            background-color: #ffc107; /* Yellow for currently processing */
-            color: #856404;
-            transform: scale(1.05);
-            box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+            box-shadow: 0 0 8px rgba(255, 193, 7, 0.8);
             z-index: 10;
         }
 
-        .cell.goal {
+        .goal {
             background-color: #d4edda;
             color: #155724;
             border: 2px dashed #28a745;
+            box-sizing: border-box;
         }
 
-        /* Stack Styles */
-        .stack-container {
+        /* Stack Visualization */
+        .stack-section {
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 200px;
         }
 
-        .stack-box {
-            width: 100%;
-            height: 320px;
-            border: 3px solid #343a40;
-            border-top: none;
+        .stack-container {
+            width: 200px;
+            height: 250px;
+            border: 4px solid #444;
+            border-top: none; /* Open top for the stack */
             border-radius: 0 0 8px 8px;
+            background-color: #fafafa;
             display: flex;
-            flex-direction: column-reverse; /* Builds from the bottom up */
+            flex-direction: column-reverse; /* Items stack from bottom to top */
             padding: 10px;
             box-sizing: border-box;
-            background-color: #f8f9fa;
             overflow-y: auto;
-            gap: 5px;
+            gap: 6px;
         }
 
         .stack-item {
-            background-color: #007bff;
+            background-color: #6f42c1;
             color: white;
-            padding: 10px;
+            padding: 8px;
             text-align: center;
             border-radius: 4px;
             font-weight: bold;
-            animation: popIn 0.3s ease-out;
+            font-family: monospace;
+            animation: slideDown 0.2s ease-out;
         }
 
-        @keyframes popIn {
-            0% { opacity: 0; transform: translateY(-20px); }
-            100% { opacity: 1; transform: translateY(0); }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         /* Controls & Logs */
-        .controls {
-            margin-top: 20px;
+        .control-section {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 15px;
+            width: 100%;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
         }
 
         button {
-            padding: 12px 24px;
-            font-size: 16px;
+            padding: 12px 20px;
+            font-size: 15px;
             font-weight: bold;
             color: white;
-            background-color: #28a745;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             transition: background 0.2s;
         }
 
-        button:hover { background-color: #218838; }
-        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        #step-btn { background-color: #007bff; }
+        #step-btn:hover { background-color: #0056b3; }
+        #step-btn:disabled { background-color: #a0c4ff; cursor: not-allowed; }
+
+        #reset-btn { background-color: #dc3545; }
+        #reset-btn:hover { background-color: #c82333; }
 
         .log {
             width: 100%;
-            max-width: 500px;
             background: #e9ecef;
             padding: 15px;
             border-radius: 6px;
@@ -150,87 +164,111 @@
             color: #333;
             min-height: 40px;
             text-align: center;
+            box-sizing: border-box;
+            border-left: 4px solid #007bff;
         }
     </style>
 </head>
 <body>
 
-    <h1>Maze Robot Visualization</h1>
-    <p class="subtitle">Using a Stack for Depth-First Search (LIFO)</p>
+    <h1>Line-Search Robot Simulator</h1>
+    <p class="subtitle">Depth-First Search using a Stack Data Structure</p>
 
-    <div class="dashboard">
-        <div class="maze-container">
-            <h3>The Maze</h3>
+    <div class="main-container">
+        <div class="maze-section">
+            <h3>Maze Environment</h3>
             <div class="grid" id="grid"></div>
-            
-            <div class="controls">
-                <button id="step-btn" onclick="stepAlgorithm()">Step Forward</button>
-                <div class="log" id="status-log">Ready to explore! Click "Step Forward" to begin.</div>
-            </div>
         </div>
 
-        <div class="stack-container">
-            <h3>The Stack</h3>
-            <div class="stack-box" id="stack-box"></div>
+        <div class="stack-section">
+            <h3>Robot Memory (Stack)</h3>
+            <div class="stack-container" id="stack-box"></div>
+        </div>
+
+        <div class="control-section">
+            <div class="buttons">
+                <button id="step-btn" onclick="step()">Step Forward</button>
+                <button id="reset-btn" onclick="resetMaze()">Reset Maze</button>
+            </div>
+            <div class="log" id="status-log">System Ready. Click "Step Forward" to start the robot.</div>
         </div>
     </div>
 
     <script>
-        const GRID_SIZE = 5;
-        const GOAL = { r: 4, c: 4 };
-        
+        // 0 = Path, 1 = Wall
+        const mazeLayout = [
+            [0, 0, 1, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0],
+            [0, 0, 1, 1, 1, 1, 0],
+            [0, 1, 0, 0, 0, 0, 0],
+            [0, 1, 0, 1, 1, 1, 1],
+            [0, 0, 0, 0, 0, 0, 0] // Exit at bottom right (6,6)
+        ];
+
+        const ROWS = mazeLayout.length;
+        const COLS = mazeLayout[0].length;
+        const START = { r: 0, c: 0 };
+        const GOAL = { r: 6, c: 6 };
+
         // State variables
-        let stack = [{ r: 0, c: 0 }];
-        let visited = new Set(["0,0"]);
+        let stack = [];
+        let visited = new Set();
         let current = null;
         let isDone = false;
 
+        // DOM Elements
         const gridEl = document.getElementById('grid');
         const stackBoxEl = document.getElementById('stack-box');
         const logEl = document.getElementById('status-log');
-        const btnEl = document.getElementById('step-btn');
+        const stepBtn = document.getElementById('step-btn');
 
-        // Initialize the HTML grid
-        function setupGrid() {
-            for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
+        function initGrid() {
+            gridEl.innerHTML = '';
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
                     const cell = document.createElement('div');
-                    cell.className = 'cell';
                     cell.id = `cell-${r}-${c}`;
-                    cell.innerText = `${r},${c}`;
+                    
+                    if (mazeLayout[r][c] === 1) {
+                        cell.className = 'cell wall';
+                    } else {
+                        cell.className = 'cell path';
+                        cell.innerText = `${r},${c}`;
+                    }
+
                     if (r === GOAL.r && c === GOAL.c) {
                         cell.classList.add('goal');
                         cell.innerText = "EXIT";
                     }
+                    
                     gridEl.appendChild(cell);
                 }
             }
-            updateVisuals();
         }
 
-        // Updates the colors on the grid and the items in the stack
         function updateVisuals() {
-            // Reset grid classes
-            document.querySelectorAll('.cell').forEach(cell => {
+            // Clear dynamic classes from paths
+            document.querySelectorAll('.path').forEach(cell => {
                 cell.classList.remove('current', 'visited');
             });
 
-            // Re-apply goal class to ensure it stays visible
+            // Ensure goal retains its styling
             document.getElementById(`cell-${GOAL.r}-${GOAL.c}`).classList.add('goal');
 
-            // Color visited cells
+            // Apply visited class
             visited.forEach(coord => {
                 const cell = document.getElementById(`cell-${coord.replace(',', '-')}`);
                 if (cell) cell.classList.add('visited');
             });
 
-            // Highlight current cell
+            // Apply current class
             if (current) {
                 const currentCell = document.getElementById(`cell-${current.r}-${current.c}`);
                 if (currentCell) currentCell.classList.add('current');
             }
 
-            // Render the stack elements
+            // Render Stack
             stackBoxEl.innerHTML = '';
             stack.forEach(node => {
                 const div = document.createElement('div');
@@ -240,30 +278,29 @@
             });
         }
 
-        // Core Algorithm Step
-        function stepAlgorithm() {
+        function step() {
             if (isDone) return;
 
             if (stack.length === 0) {
-                logEl.innerText = "Stack is empty! The entire connected maze was explored.";
-                btnEl.disabled = true;
+                logEl.innerText = "Stack is empty. Robot has explored all reachable paths.";
+                stepBtn.disabled = true;
                 return;
             }
 
-            // 1. POP from Stack
+            // 1. POP
             current = stack.pop();
-            let logMessage = `POPPED [${current.r}, ${current.c}] from the stack. Moving robot here. `;
+            let logMsg = `Popped [${current.r}, ${current.c}] from Stack. `;
 
-            // Check if we found the goal
+            // Check Win Condition
             if (current.r === GOAL.r && current.c === GOAL.c) {
-                logEl.innerText = logMessage + " 🎉 EXIT FOUND!";
+                logEl.innerText = logMsg + "Target reached! Maze solved.";
                 updateVisuals();
-                btnEl.disabled = true;
+                stepBtn.disabled = true;
                 isDone = true;
                 return;
             }
 
-            // 2. Find and PUSH unvisited neighbors (Right, Down, Left, Up)
+            // 2. PUSH unvisited valid neighbors (Right, Down, Left, Up)
             const directions = [
                 { dr: 0, dc: 1, name: "Right" },
                 { dr: 1, dc: 0, name: "Down" },
@@ -271,35 +308,39 @@
                 { dr: -1, dc: 0, name: "Up" }
             ];
 
-            let pushedAny = false;
+            let foundNewPath = false;
 
             directions.forEach(dir => {
-                const newR = current.r + dir.dr;
-                const newC = current.c + dir.dc;
-                const coordString = `${newR},${newC}`;
+                const nr = current.r + dir.dr;
+                const nc = current.c + dir.dc;
+                const coordStr = `${nr},${nc}`;
 
-                // Check boundaries and if already visited
-                if (newR >= 0 && newR < GRID_SIZE && newC >= 0 && newC < GRID_SIZE) {
-                    if (!visited.has(coordString)) {
-                        visited.add(coordString);
-                        stack.push({ r: newR, c: newC });
-                        pushedAny = true;
+                // Check bounds
+                if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                    // Check if it's a path (0) and not visited
+                    if (mazeLayout[nr][nc] === 0 && !visited.has(coordStr)) {
+                        visited.add(coordStr);
+                        stack.push({ r: nr, c: nc });
+                        foundNewPath = true;
                     }
                 }
             });
 
-            if (pushedAny) {
-                logMessage += "Pushed new paths to the stack.";
+            if (foundNewPath) {
+                logMsg += "Pushed branching paths to memory.";
             } else {
-                logMessage += "Hit a dead end. Preparing to backtrack.";
+                logMsg += "Hit a dead end. Preparing to backtrack.";
             }
 
-            logEl.innerText = logMessage;
+            logEl.innerText = logMsg;
             updateVisuals();
         }
 
-        // Run setup on load
-        setupGrid();
-    </script>
-</body>
-</html>
+        function resetMaze() {
+            stack = [{ r: START.r, c: START.c }];
+            visited = new Set([`${START.r},${START.c}`]);
+            current = null;
+            isDone = false;
+            stepBtn.disabled = false;
+            logEl.innerText = "System Reset. Ready to explore.";
+            updateVisuals
