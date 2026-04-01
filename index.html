@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DFS Stack Visualization</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { margin-bottom: 5px; }
+        p.subtitle { margin-top: 0; color: #666; margin-bottom: 20px; }
+
+        .dashboard {
+            display: flex;
+            gap: 40px;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        /* Grid / Maze Styles */
+        .maze-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 60px);
+            gap: 4px;
+            background-color: #ddd;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            background-color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: #ccc;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .cell.visited {
+            background-color: #cce5ff; /* Light blue for visited */
+            color: #004085;
+        }
+
+        .cell.current {
+            background-color: #ffc107; /* Yellow for currently processing */
+            color: #856404;
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+            z-index: 10;
+        }
+
+        .cell.goal {
+            background-color: #d4edda;
+            color: #155724;
+            border: 2px dashed #28a745;
+        }
+
+        /* Stack Styles */
+        .stack-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 200px;
+        }
+
+        .stack-box {
+            width: 100%;
+            height: 320px;
+            border: 3px solid #343a40;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            display: flex;
+            flex-direction: column-reverse; /* Builds from the bottom up */
+            padding: 10px;
+            box-sizing: border-box;
+            background-color: #f8f9fa;
+            overflow-y: auto;
+            gap: 5px;
+        }
+
+        .stack-item {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            border-radius: 4px;
+            font-weight: bold;
+            animation: popIn 0.3s ease-out;
+        }
+
+        @keyframes popIn {
+            0% { opacity: 0; transform: translateY(-20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Controls & Logs */
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            background-color: #28a745;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #218838; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+
+        .log {
+            width: 100%;
+            max-width: 500px;
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+            color: #333;
+            min-height: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Maze Robot Visualization</h1>
+    <p class="subtitle">Using a Stack for Depth-First Search (LIFO)</p>
+
+    <div class="dashboard">
+        <div class="maze-container">
+            <h3>The Maze</h3>
+            <div class="grid" id="grid"></div>
+            
+            <div class="controls">
+                <button id="step-btn" onclick="stepAlgorithm()">Step Forward</button>
+                <div class="log" id="status-log">Ready to explore! Click "Step Forward" to begin.</div>
+            </div>
+        </div>
+
+        <div class="stack-container">
+            <h3>The Stack</h3>
+            <div class="stack-box" id="stack-box"></div>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 5;
+        const GOAL = { r: 4, c: 4 };
+        
+        // State variables
+        let stack = [{ r: 0, c: 0 }];
+        let visited = new Set(["0,0"]);
+        let current = null;
+        let isDone = false;
+
+        const gridEl = document.getElementById('grid');
+        const stackBoxEl = document.getElementById('stack-box');
+        const logEl = document.getElementById('status-log');
+        const btnEl = document.getElementById('step-btn');
+
+        // Initialize the HTML grid
+        function setupGrid() {
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${r}-${c}`;
+                    cell.innerText = `${r},${c}`;
+                    if (r === GOAL.r && c === GOAL.c) {
+                        cell.classList.add('goal');
+                        cell.innerText = "EXIT";
+                    }
+                    gridEl.appendChild(cell);
+                }
+            }
+            updateVisuals();
+        }
+
+        // Updates the colors on the grid and the items in the stack
+        function updateVisuals() {
+            // Reset grid classes
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('current', 'visited');
+            });
+
+            // Re-apply goal class to ensure it stays visible
+            document.getElementById(`cell-${GOAL.r}-${GOAL.c}`).classList.add('goal');
+
+            // Color visited cells
+            visited.forEach(coord => {
+                const cell = document.getElementById(`cell-${coord.replace(',', '-')}`);
+                if (cell) cell.classList.add('visited');
+            });
+
+            // Highlight current cell
+            if (current) {
+                const currentCell = document.getElementById(`cell-${current.r}-${current.c}`);
+                if (currentCell) currentCell.classList.add('current');
+            }
+
+            // Render the stack elements
+            stackBoxEl.innerHTML = '';
+            stack.forEach(node => {
+                const div = document.createElement('div');
+                div.className = 'stack-item';
+                div.innerText = `[${node.r}, ${node.c}]`;
+                stackBoxEl.appendChild(div);
+            });
+        }
+
+        // Core Algorithm Step
+        function stepAlgorithm() {
+            if (isDone) return;
+
+            if (stack.length === 0) {
+                logEl.innerText = "Stack is empty! The entire connected maze was explored.";
+                btnEl.disabled = true;
+                return;
+            }
+
+            // 1. POP from Stack
+            current = stack.pop();
+            let logMessage = `POPPED [${current.r}, ${current.c}] from the stack. Moving robot here. `;
+
+            // Check if we found the goal
+            if (current.r === GOAL.r && current.c === GOAL.c) {
+                logEl.innerText = logMessage + " 🎉 EXIT FOUND!";
+                updateVisuals();
+                btnEl.disabled = true;
+                isDone = true;
+                return;
+            }
+
+            // 2. Find and PUSH unvisited neighbors (Right, Down, Left, Up)
+            const directions = [
+                { dr: 0, dc: 1, name: "Right" },
+                { dr: 1, dc: 0, name: "Down" },
+                { dr: 0, dc: -1, name: "Left" },
+                { dr: -1, dc: 0, name: "Up" }
+            ];
+
+            let pushedAny = false;
+
+            directions.forEach(dir => {
+                const newR = current.r + dir.dr;
+                const newC = current.c + dir.dc;
+                const coordString = `${newR},${newC}`;
+
+                // Check boundaries and if already visited
+                if (newR >= 0 && newR < GRID_SIZE && newC >= 0 && newC < GRID_SIZE) {
+                    if (!visited.has(coordString)) {
+                        visited.add(coordString);
+                        stack.push({ r: newR, c: newC });
+                        pushedAny = true;
+                    }
+                }
+            });
+
+            if (pushedAny) {
+                logMessage += "Pushed new paths to the stack.";
+            } else {
+                logMessage += "Hit a dead end. Preparing to backtrack.";
+            }
+
+            logEl.innerText = logMessage;
+            updateVisuals();
+        }
+
+        // Run setup on load
+        setupGrid();
+    </script>
+</body>
+</html>
